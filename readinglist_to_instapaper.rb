@@ -4,7 +4,7 @@ require 'bundler/setup'
 
 require 'net/https'
 require 'uri'
-require 'ruby_gntp'
+require 'terminal-notifier'
 require 'nokogiri-plist'
 require 'date'
 
@@ -40,13 +40,14 @@ input = %x[/usr/bin/plutil -convert xml1 -o - ~/Library/Safari/Bookmarks.plist]
 # There's probably a better way to do this, but I'm stupid at Ruby
 # This also seems ripe for refactoring, but I'm lazy
 plist = Nokogiri::PList(input)
+
 if plist.include? 'Children'
   plist['Children'].each do |child|
     child.keys.each do |ck|
       if child[ck].is_a? Array
         child[ck].each do |list|
           if list.include? 'ReadingList'
-            datefetched = list['ReadingList']['DateAdded']
+            datefetched = list['ReadingList']['DateAdded'] || list['ReadingList']['DateLastFetched']
             if (datefetched > lastrun_dt)
               links << URI::escape(list['URLString'])
             end
@@ -60,36 +61,29 @@ end
 
 
 # Let's loop through our links and add them to instapaper
-links.each do |url|
+links.reverse_each do |url|
   http = Net::HTTP.new(instapaper, 443)
   http.use_ssl = true
   http.verify_mode = OpenSSL::SSL::VERIFY_PEER
-  query_string = "/api/add?url=#{url}"
+  query_string = "/api/add?url=#{URI::escape(url)}"
   request = Net::HTTP::Get.new(query_string)
   request.basic_auth(insta_user, insta_pass)
   response = http.request(request)
 
-  # Throw up a growl message
-  # The icon stuff doesn't work. Not sure why yet
+  # Display a message in the notification center
   if ( response.code == '201' )
     begin
-    GNTP.notify({
-      :app_name => "Instapaper",
-      :title    => "Added to Instapaper",
-      :text     => "Successfully added #{url}",
-      :icon     => "http://www.instapaper.com/apple-touch-icon.png",
-    })
-    rescue Errno::ECONNREFUSED
+      TerminalNotifier.notify('Instapaper', :title => 'Added to Instapaper', :subtitle => url)
+    rescue Exception
+      puts $!
+      puts $@
     end
   else
     begin
-    GNTP.notify({
-      :app_name => "Instapaper",
-      :title    => "Error Adding to Instapaper",
-      :text     => "Could not add #{url}",
-      :icon     => "http://www.instapaper.com/apple-touch-icon.png",
-    })
-    rescue Errno::ECONNREFUSED
+      TerminalNotifier.notify('Instapaper', :title => 'Error adding to Instapaper', :subtitle => "#{url} #{response.body}")
+    rescue Exception
+      puts $!
+      puts $@
     end
   end
 end

@@ -1,3 +1,5 @@
+Update: This fork uses OS X notification instead of Growl
+
 # Reading List to Instapaper
 [blog.ryantoohil.com](http://blog.ryantoohil.com/2012/03/using-safaris-reading-list-to-feed-instapaper.php)
 

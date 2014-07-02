@@ -1,5 +1,5 @@
 
 source 'https://rubygems.org'
 
-gem 'ruby_gntp'
+gem 'terminal-notifier'
 gem 'nokogiri-plist'
